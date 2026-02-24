@@ -8,6 +8,46 @@ function App() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
+    const [suggestion, setSuggestion] = useState(null);
+
+    const generateSuggestion = () => {
+        if (data.length === 0) return;
+
+        // Pega os últimos 20 resultados para análise
+        const recentResults = data.slice(0, 20);
+        const frequency = {};
+
+        recentResults.forEach(concurso => {
+            concurso.listaDezenas.forEach(num => {
+                const n = parseInt(num);
+                frequency[n] = (frequency[n] || 0) + 1;
+            });
+        });
+
+        // Ordenar números por frequência
+        const sortedNumbers = Object.keys(frequency)
+            .map(n => parseInt(n))
+            .sort((a, b) => frequency[b] - frequency[a]);
+
+        // Pegar os 12 mais frequentes
+        const hotNumbers = sortedNumbers.slice(0, 12);
+
+        const selected = new Set();
+
+        // Tenta pegar 4 dos "quentes"
+        while (selected.size < 4 && hotNumbers.length >= 4) {
+            const index = Math.floor(Math.random() * hotNumbers.length);
+            selected.add(hotNumbers[index]);
+        }
+
+        // Completa com números aleatórios (1-60) até ter 6
+        while (selected.size < 6) {
+            const randomNum = Math.floor(Math.random() * 60) + 1;
+            selected.add(randomNum);
+        }
+
+        setSuggestion(Array.from(selected).sort((a, b) => a - b));
+    };
 
     const fetchData = async () => {
         setLoading(true);
@@ -149,6 +189,47 @@ function App() {
                         </div>
                     </section>
                 )}
+
+                {/* Game Generator Section */}
+                <section className="bg-white rounded-3xl p-6 md:p-8 shadow-xl border border-gray-100 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-megasena-green/5 rounded-bl-full -z-0"></div>
+
+                    <div className="relative z-10">
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                            <div>
+                                <h3 className="text-xl font-black text-gray-800 flex items-center gap-2">
+                                    <Trophy className="w-6 h-6 text-megasena-green" />
+                                    Gerador de Palpites
+                                </h3>
+                                <p className="text-sm text-gray-500 font-medium">Sugerindo números com base na frequência dos últimos 20 sorteios</p>
+                            </div>
+                            <button
+                                onClick={generateSuggestion}
+                                className="bg-megasena-green hover:bg-megasena-green-dark text-white font-bold py-3 px-6 rounded-2xl transition-all shadow-lg hover:shadow-megasena-green/20 flex items-center justify-center gap-2 active:scale-95"
+                            >
+                                <RefreshCw className={`w-5 h-5 ${suggestion ? '' : 'animate-spin'}`} />
+                                {suggestion ? 'Gerar Novo Palpite' : 'Gerar Palpite'}
+                            </button>
+                        </div>
+
+                        {suggestion ? (
+                            <div className="flex flex-wrap justify-center gap-3 animate-in fade-in zoom-in duration-500">
+                                {suggestion.map((num, i) => (
+                                    <div
+                                        key={i}
+                                        className="w-12 h-12 md:w-16 md:h-16 bg-white border-4 border-megasena-green text-megasena-green rounded-full flex items-center justify-center text-xl md:text-2xl font-black shadow-md"
+                                    >
+                                        {num.toString().padStart(2, '0')}
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="bg-gray-50 border-2 border-dashed border-gray-200 rounded-2xl p-8 text-center">
+                                <p className="text-gray-400 font-medium italic">Clique no botão para ver uma sugestão de jogo.</p>
+                            </div>
+                        )}
+                    </div>
+                </section>
 
                 {/* History List */}
                 <section className="space-y-4">

@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Calendar, Trophy, ChevronRight, RefreshCw, AlertCircle } from 'lucide-react';
 
 const MEGA_SENA_API = 'https://loteriascaixa-api.herokuapp.com/api/megasena';
+const MEGA_SENA_API_SECONDARY = 'https://lottolookup.com.br/api/megasena';
+const MEGA_SENA_API_OFFICIAL = '/caixa-api';
 
 function App() {
     const [data, setData] = useState([]);
@@ -53,20 +55,73 @@ function App() {
         setLoading(true);
         setError(null);
         try {
-            const response = await fetch(MEGA_SENA_API);
-            if (!response.ok) throw new Error('Falha ao buscar dados');
-            const json = await response.json();
+            // Fetch from multiple APIs in parallel
+            const [resOff, res1, res2] = await Promise.allSettled([
+                fetch(MEGA_SENA_API_OFFICIAL).then(r => r.ok ? r.json() : null).catch(() => null),
+                fetch(MEGA_SENA_API).then(r => r.ok ? r.json() : null).catch(() => null),
+                fetch(MEGA_SENA_API_SECONDARY).then(r => r.ok ? r.json() : null).catch(() => null)
+            ]);
 
-            const mappedData = json.map(item => ({
+            const resultsOfficial = resOff.status === 'fulfilled' && resOff.value ? [resOff.value] : [];
+            const results1 = res1.status === 'fulfilled' && res1.value ? res1.value : [];
+            const results2 = res2.status === 'fulfilled' && res2.value ? Object.values(res2.value) : [];
+
+            console.log('API Sources Status:', {
+                official: resultsOfficial.length > 0,
+                heroku: results1.length > 0,
+                lottolookup: results2.length > 0
+            });
+
+            if (resultsOfficial.length === 0 && results1.length === 0 && results2.length === 0) {
+                throw new Error('Falha ao buscar dados de todas as fontes');
+            }
+
+            // Map and Merge results
+            const mapHeroku = (item) => ({
                 numero: item.concurso,
                 dataApuracao: item.data,
                 listaDezenas: item.dezenas,
                 acumulado: item.acumulou,
                 dataProximoConcurso: item.dataProximoConcurso,
                 valorEstimadoProximoConcurso: item.valorEstimadoProximoConcurso
-            }));
+            });
 
-            setData(mappedData);
+            const mapInternal = (item) => ({
+                numero: item.numero,
+                dataApuracao: item.dataApuracao,
+                listaDezenas: item.listaDezenas,
+                acumulado: item.acumulado,
+                dataProximoConcurso: item.dataProximoConcurso,
+                valorEstimadoProximoConcurso: item.valorEstimadoProximoConcurso
+            });
+
+            const mergedMap = new Map();
+
+            // Process Official (most up-to-date)
+            resultsOfficial.forEach(item => {
+                const mapped = mapInternal(item);
+                mergedMap.set(mapped.numero, mapped);
+            });
+
+            // Process Lottolookup
+            results2.forEach(item => {
+                if (!mergedMap.has(item.numero)) {
+                    mergedMap.set(item.numero, mapInternal(item));
+                }
+            });
+
+            // Process Heroku
+            results1.forEach(item => {
+                if (!mergedMap.has(item.concurso)) {
+                    mergedMap.set(item.concurso, mapHeroku(item));
+                }
+            });
+
+            // Convert to array and sort by number descending
+            const finalData = Array.from(mergedMap.values())
+                .sort((a, b) => b.numero - a.numero);
+
+            setData(finalData);
         } catch (err) {
             setError('Ocorreu um erro ao carregar os resultados. Por favor, tente novamente mais tarde.');
             console.error('Fetch error:', err);

@@ -37,4 +37,13 @@ export default defineConfig({
             }
         })
     ],
+    server: {
+        proxy: {
+            '/caixa-api': {
+                target: 'https://servicebus2.caixa.gov.br',
+                changeOrigin: true,
+                rewrite: (path) => path.replace(/^\/caixa-api/, '/portaldeloterias/api/megasena')
+            }
+        }
+    }
 })

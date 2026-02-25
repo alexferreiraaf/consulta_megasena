@@ -1,0 +1,8 @@
+{
+    "rewrites": [
+        {
+            "source": "/caixa-api",
+            "destination": "https://servicebus2.caixa.gov.br/portaldeloterias/api/megasena/"
+        }
+    ]
+}

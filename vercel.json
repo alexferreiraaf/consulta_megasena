@@ -2,7 +2,11 @@
     "rewrites": [
         {
             "source": "/caixa-api",
-            "destination": "https://servicebus2.caixa.gov.br/portaldeloterias/api/megasena/"
+            "destination": "https://servicebus2.caixa.gov.br/portaldeloterias/api/megasena"
+        },
+        {
+            "source": "/lottolookup-api",
+            "destination": "https://lottolookup.com.br/api/megasena"
         }
     ]
 }

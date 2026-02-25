@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Calendar, Trophy, ChevronRight, RefreshCw, AlertCircle } from 'lucide-react';
 
 const MEGA_SENA_API = 'https://loteriascaixa-api.herokuapp.com/api/megasena';
-const MEGA_SENA_API_SECONDARY = 'https://lottolookup.com.br/api/megasena';
+const MEGA_SENA_API_SECONDARY = '/lottolookup-api';
 const MEGA_SENA_API_OFFICIAL = '/caixa-api';
 
 function App() {

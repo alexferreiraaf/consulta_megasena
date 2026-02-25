@@ -43,6 +43,11 @@ export default defineConfig({
                 target: 'https://servicebus2.caixa.gov.br',
                 changeOrigin: true,
                 rewrite: (path) => path.replace(/^\/caixa-api/, '/portaldeloterias/api/megasena')
+            },
+            '/lottolookup-api': {
+                target: 'https://lottolookup.com.br',
+                changeOrigin: true,
+                rewrite: (path) => path.replace(/^\/lottolookup-api/, '/api/megasena')
             }
         }
     }

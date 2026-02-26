@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Trophy, ChevronRight, RefreshCw, AlertCircle } from 'lucide-react';
+import { Calendar, Trophy, ChevronRight, RefreshCw, AlertCircle, MapPin } from 'lucide-react';
 
 const MEGA_SENA_API = 'https://loteriascaixa-api.herokuapp.com/api/megasena';
 const MEGA_SENA_API_SECONDARY = '/lottolookup-api';
@@ -11,6 +11,26 @@ function App() {
     const [error, setError] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [suggestion, setSuggestion] = useState(null);
+    const [expandedConcurso, setExpandedConcurso] = useState(null);
+
+    const toggleConcurso = (numero) => {
+        if (expandedConcurso === numero) {
+            setExpandedConcurso(null);
+        } else {
+            setExpandedConcurso(numero);
+        }
+    };
+
+    const formatWinners = (winners) => {
+        if (!winners || winners.length === 0) return null;
+
+        return winners.map(w => {
+            const city = w.municipio === 'CANAL ELETRONICO' ? 'Canal Eletrônico' : w.municipio;
+            const uf = w.uf && w.uf !== '--' ? `/${w.uf}` : '';
+            const count = w.ganhadores > 1 ? ` (${w.ganhadores})` : '';
+            return `${city}${uf}${count}`;
+        }).join(', ');
+    };
 
     const generateSuggestion = () => {
         if (data.length === 0) return;
@@ -83,17 +103,37 @@ function App() {
                 listaDezenas: item.dezenas,
                 acumulado: item.acumulou,
                 dataProximoConcurso: item.dataProximoConcurso,
-                valorEstimadoProximoConcurso: item.valorEstimadoProximoConcurso
+                valorEstimadoProximoConcurso: item.valorEstimadoProximoConcurso,
+                localSorteio: item.local,
+                ganhadoresLocal: item.localGanhadores || [],
+                premiacoes: item.premiacoes ? item.premiacoes.map(p => ({
+                    descricao: p.descricao,
+                    ganhadores: p.ganhadores,
+                    valorPremio: p.valorPremio
+                })) : []
             });
 
-            const mapInternal = (item) => ({
-                numero: item.numero,
-                dataApuracao: item.dataApuracao,
-                listaDezenas: item.listaDezenas,
-                acumulado: item.acumulado,
-                dataProximoConcurso: item.dataProximoConcurso,
-                valorEstimadoProximoConcurso: item.valorEstimadoProximoConcurso
-            });
+            const mapInternal = (item) => {
+                let local = item.localSorteio || '';
+                if (item.nomeMunicipioUFSorteio) {
+                    local = local ? `${local} em ${item.nomeMunicipioUFSorteio}` : item.nomeMunicipioUFSorteio;
+                }
+                return {
+                    numero: item.numero,
+                    dataApuracao: item.dataApuracao,
+                    listaDezenas: item.listaDezenas,
+                    acumulado: item.acumulado,
+                    dataProximoConcurso: item.dataProximoConcurso,
+                    valorEstimadoProximoConcurso: item.valorEstimadoProximoConcurso,
+                    localSorteio: local || item.local, // Falback for Lottolookup and internal format inconsistencies
+                    ganhadoresLocal: item.listaMunicipioUFGanhadores || item.localGanhadores || [],
+                    premiacoes: item.listaRateioPremio ? item.listaRateioPremio.map(p => ({
+                        descricao: p.descricaoFaixa || `${7 - p.faixa} acertos`, // Fallback for description if missing
+                        ganhadores: p.numeroDeGanhadores,
+                        valorPremio: p.valorPremio
+                    })) : item.premiacoes || []
+                };
+            };
 
             const mergedMap = new Map();
 
@@ -202,9 +242,22 @@ function App() {
 
                             <p className="uppercase tracking-widest text-sm font-bold opacity-80 mb-1">Último Resultado</p>
                             <h2 className="text-4xl font-black mb-1">Concurso {latest.numero}</h2>
-                            <div className="flex items-center justify-center gap-2 opacity-90 text-sm">
-                                <Calendar className="w-4 h-4" />
-                                <span>{latest.dataApuracao}</span>
+                            <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4 opacity-90 text-sm mt-3">
+                                <div className="flex items-center gap-1">
+                                    <Calendar className="w-4 h-4" />
+                                    <span>{latest.dataApuracao}</span>
+                                </div>
+                                {!latest.acumulado && latest.ganhadoresLocal && latest.ganhadoresLocal.length > 0 ? (
+                                    <div className="flex items-center gap-1 bg-yellow-400/20 text-yellow-100 px-3 py-1 rounded-full font-bold">
+                                        <Trophy className="w-4 h-4" />
+                                        <span>Ganhador em: {formatWinners(latest.ganhadoresLocal)}</span>
+                                    </div>
+                                ) : latest.localSorteio && (
+                                    <div className="flex items-center gap-1">
+                                        <MapPin className="w-4 h-4" />
+                                        <span>{latest.localSorteio}</span>
+                                    </div>
+                                )}
                             </div>
                         </div>
 
@@ -309,41 +362,86 @@ function App() {
 
                     <div className="space-y-3">
                         {filteredHistory.length > 0 ? (
-                            filteredHistory.map((concurso) => (
-                                <div
-                                    key={concurso.numero}
-                                    className="bg-white p-4 md:p-5 rounded-2xl shadow hover:shadow-md transition-shadow border border-gray-100 flex flex-col md:flex-row md:items-center justify-between gap-4"
-                                >
-                                    <div className="flex items-center justify-between md:justify-start gap-4">
-                                        <div className="bg-gray-100 px-3 py-1 rounded-lg">
-                                            <span className="text-xs font-bold text-gray-400 uppercase leading-none block">Nº</span>
-                                            <span className="text-lg font-black text-gray-700">{concurso.numero}</span>
-                                        </div>
-                                        <div>
-                                            <div className="flex items-center gap-1 text-xs text-gray-400 font-bold mb-1">
-                                                <Calendar className="w-3 h-3" /> {concurso.dataApuracao}
-                                            </div>
-                                            <div className="flex gap-1.5">
-                                                {concurso.listaDezenas.map((dezena, i) => (
-                                                    <span key={i} className="w-7 h-7 bg-megasena-green/10 text-megasena-green rounded-full flex items-center justify-center text-xs font-black border border-megasena-green/20">
-                                                        {dezena}
-                                                    </span>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    </div>
+                            filteredHistory.map((concurso) => {
+                                const isExpanded = expandedConcurso === concurso.numero;
 
-                                    <div className="flex items-center justify-between md:justify-end gap-6 text-right">
-                                        <div className="hidden sm:block">
-                                            <p className="text-[10px] uppercase font-bold text-gray-400">Prêmio Principal</p>
-                                            <p className={`text-sm font-bold ${concurso.acumulado ? 'text-gray-400' : 'text-megasena-green'}`}>
-                                                {concurso.acumulado ? 'Acumulado' : 'Realizado'}
-                                            </p>
+                                return (
+                                    <div key={concurso.numero} className="bg-white rounded-2xl shadow hover:shadow-md transition-all border border-gray-100 overflow-hidden">
+                                        {/* Main Row */}
+                                        <div
+                                            onClick={() => toggleConcurso(concurso.numero)}
+                                            className="p-4 md:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 cursor-pointer hover:bg-gray-50/50"
+                                        >
+                                            <div className="flex items-center justify-between md:justify-start gap-4">
+                                                <div className="bg-gray-100 px-3 py-1 rounded-lg">
+                                                    <span className="text-xs font-bold text-gray-400 uppercase leading-none block">Nº</span>
+                                                    <span className="text-lg font-black text-gray-700">{concurso.numero}</span>
+                                                </div>
+                                                <div>
+                                                    <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 text-xs text-gray-400 font-bold mb-1">
+                                                        <div className="flex items-center gap-1">
+                                                            <Calendar className="w-3 h-3" /> {concurso.dataApuracao}
+                                                        </div>
+                                                        {!concurso.acumulado && concurso.ganhadoresLocal && concurso.ganhadoresLocal.length > 0 ? (
+                                                            <div className="flex items-center gap-1 max-w-[150px] sm:max-w-[200px]" title={formatWinners(concurso.ganhadoresLocal)}>
+                                                                <Trophy className="w-3 h-3 flex-shrink-0 text-yellow-500" />
+                                                                <span className="truncate text-yellow-600 font-bold">{formatWinners(concurso.ganhadoresLocal)}</span>
+                                                            </div>
+                                                        ) : concurso.localSorteio && (
+                                                            <div className="flex items-center gap-1 max-w-[150px] sm:max-w-[200px]" title={concurso.localSorteio}>
+                                                                <MapPin className="w-3 h-3 flex-shrink-0" />
+                                                                <span className="truncate">{concurso.localSorteio}</span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    <div className="flex gap-1.5">
+                                                        {concurso.listaDezenas.map((dezena, i) => (
+                                                            <span key={i} className="w-7 h-7 bg-megasena-green/10 text-megasena-green rounded-full flex items-center justify-center text-xs font-black border border-megasena-green/20">
+                                                                {dezena}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex items-center justify-between md:justify-end gap-6 text-right">
+                                                <div className="hidden sm:block">
+                                                    <p className="text-[10px] uppercase font-bold text-gray-400">Prêmio Principal</p>
+                                                    <p className={`text-sm font-bold ${concurso.acumulado ? 'text-gray-400' : 'text-megasena-green'}`}>
+                                                        {concurso.acumulado ? 'Acumulado' : 'Realizado'}
+                                                    </p>
+                                                </div>
+                                                <ChevronRight className={`text-gray-300 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+                                            </div>
                                         </div>
-                                        <ChevronRight className="text-gray-300" />
+
+                                        {/* Expanded Details */}
+                                        {isExpanded && (
+                                            <div className="p-4 md:p-5 border-t border-gray-100 bg-gray-50/50 animate-in slide-in-from-top-2 duration-200">
+                                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                                    {concurso.premiacoes && concurso.premiacoes.length > 0 ? (
+                                                        concurso.premiacoes.slice(0, 3).map((premio, idx) => (
+                                                            <div key={idx} className="bg-white p-3 rounded-xl border border-gray-100 shadow-sm flex flex-col items-center text-center">
+                                                                <span className="text-xs font-bold text-gray-500 uppercase mb-1">{premio.descricao}</span>
+                                                                <span className={`text-lg font-black ${idx === 0 && !concurso.acumulado ? 'text-megasena-green' : 'text-gray-700'}`}>
+                                                                    {premio.valorPremio ? premio.valorPremio.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'R$ 0,00'}
+                                                                </span>
+                                                                <span className="text-xs text-gray-400 font-medium mt-1">
+                                                                    {premio.ganhadores} ganhador{premio.ganhadores !== 1 ? 'es' : ''}
+                                                                </span>
+                                                            </div>
+                                                        ))
+                                                    ) : (
+                                                        <div className="col-span-3 text-center text-gray-500 py-2 text-sm">
+                                                            Detalhes da premiação não disponíveis.
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
-                                </div>
-                            ))
+                                );
+                            })
                         ) : (
                             <div className="bg-white p-12 rounded-3xl text-center border-2 border-dashed border-gray-100 space-y-3">
                                 <AlertCircle className="w-12 h-12 text-gray-300 mx-auto" />

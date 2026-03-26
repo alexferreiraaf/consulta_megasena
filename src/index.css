@@ -11,6 +11,10 @@
   color: #213547;
   background-color: #f6f6f6;
 
+  --lottery-primary: #209869;
+  --lottery-dark: #006b3f;
+  --lottery-light: #b5db61;
+
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;

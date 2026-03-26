@@ -7,10 +7,10 @@ export default {
   theme: {
     extend: {
       colors: {
-        megasena: {
-          green: "#209869",
-          "green-dark": "#006b3f",
-          "green-light": "#b5db61",
+        lottery: {
+          primary: "var(--lottery-primary)",
+          dark: "var(--lottery-dark)",
+          light: "var(--lottery-light)",
         }
       }
     },
